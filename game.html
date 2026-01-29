@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Clear Snake Game</title>
+
+<style>
+    body {
+        margin: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background: #0f172a;
+        font-family: Arial, sans-serif;
+        color: white;
+    }
+
+    canvas {
+        background: #020617;
+        border: 3px solid #22c55e;
+    }
+
+    h2 {
+        position: absolute;
+        top: 20px;
+    }
+</style>
+</head>
+
+<body>
+
+<h2>🐍 Snake Game</h2>
+<canvas id="game" width="420" height="420"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const size = 20;
+let snake = [
+    { x: 200, y: 200 },
+    { x: 180, y: 200 },
+    { x: 160, y: 200 }
+];
+
+let direction = "RIGHT";
+let score = 0;
+
+let food = spawnFood();
+
+function spawnFood() {
+    return {
+        x: Math.floor(Math.random() * 21) * size,
+        y: Math.floor(Math.random() * 21) * size
+    };
+}
+
+document.addEventListener("keydown", e => {
+    if (e.key === "ArrowUp" && direction !== "DOWN") direction = "UP";
+    if (e.key === "ArrowDown" && direction !== "UP") direction = "DOWN";
+    if (e.key === "ArrowLeft" && direction !== "RIGHT") direction = "LEFT";
+    if (e.key === "ArrowRight" && direction !== "LEFT") direction = "RIGHT";
+});
+
+function drawRoundedRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+    ctx.fill();
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw food
+    ctx.fillStyle = "#ef4444";
+    ctx.beginPath();
+    ctx.arc(food.x + size/2, food.y + size/2, size/2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw snake
+    snake.forEach((part, index) => {
+        ctx.fillStyle = index === 0 ? "#22c55e" : "#4ade80";
+        drawRoundedRect(part.x, part.y, size, size, 6);
+    });
+
+    let head = { ...snake[0] };
+
+    if (direction === "UP") head.y -= size;
+    if (direction === "DOWN") head.y += size;
+    if (direction === "LEFT") head.x -= size;
+    if (direction === "RIGHT") head.x += size;
+
+    // Eat food
+    if (head.x === food.x && head.y === food.y) {
+        score++;
+        food = spawnFood();
+    } else {
+        snake.pop();
+    }
+
+    // Game over
+    if (
+        head.x < 0 || head.y < 0 ||
+        head.x >= canvas.width || head.y >= canvas.height ||
+        snake.some(p => p.x === head.x && p.y === head.y)
+    ) {
+        alert("Game Over! Score: " + score);
+        snake = [
+            { x: 200, y: 200 },
+            { x: 180, y: 200 },
+            { x: 160, y: 200 }
+        ];
+        direction = "RIGHT";
+        score = 0;
+        return;
+    }
+
+    snake.unshift(head);
+}
+
+setInterval(draw, 110);
+</script>
+
+</body>
+</html>
