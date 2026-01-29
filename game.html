@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Clear Snake Game</title>
+<title>3D Snake Game</title>
 
 <style>
     body {
@@ -12,30 +12,69 @@
         align-items: center;
         height: 100vh;
         background: #0f172a;
-        font-family: Arial, sans-serif;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         color: white;
+        overflow: hidden; /* Prevent scrolling */
+    }
+
+    /* Container for the game to handle relative positioning */
+    .game-container {
+        position: relative;
+        text-align: center;
     }
 
     canvas {
         background: #020617;
-        border: 3px solid #22c55e;
+        /* Add a subtle grid background */
+        background-image: 
+            linear-gradient(#1e293b 1px, transparent 1px),
+            linear-gradient(90deg, #1e293b 1px, transparent 1px);
+        background-size: 20px 20px;
+        
+        border: 4px solid #334155;
+        border-radius: 8px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        display: block;
     }
 
-    h2 {
+    /* The Score Board */
+    #score-board {
         position: absolute;
-        top: 20px;
+        top: -60px; /* Position above the canvas */
+        left: 50%;
+        transform: translateX(-50%);
+        background: #1e293b;
+        padding: 10px 30px;
+        border-radius: 20px;
+        border: 2px solid #3b82f6;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        
+        font-size: 24px;
+        font-weight: bold;
+        color: #fff;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        white-space: nowrap;
+    }
+
+    /* Styling specifically for the number */
+    #score-val {
+        color: #4ade80;
     }
 </style>
 </head>
 
 <body>
 
-<h2>🐍 Snake Game</h2>
-<canvas id="game" width="420" height="420"></canvas>
+<div class="game-container">
+    <div id="score-board">Score: <span id="score-val">0</span></div>
+    <canvas id="game" width="420" height="420"></canvas>
+</div>
 
 <script>
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
+const scoreEl = document.getElementById("score-val");
 
 const size = 20;
 let snake = [
@@ -51,8 +90,8 @@ let food = spawnFood();
 
 function spawnFood() {
     return {
-        x: Math.floor(Math.random() * 21) * size,
-        y: Math.floor(Math.random() * 21) * size
+        x: Math.floor(Math.random() * (canvas.width / size)) * size,
+        y: Math.floor(Math.random() * (canvas.height / size)) * size
     };
 }
 
@@ -63,34 +102,104 @@ document.addEventListener("keydown", e => {
     if (e.key === "ArrowRight" && direction !== "LEFT") direction = "RIGHT";
 });
 
-function drawRoundedRect(x, y, w, h, r) {
+// Helper to draw a "3D" cube
+function draw3DBlock(x, y, colorBase, colorDark, colorLight) {
+    // 1. Shadow (Glow)
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = "rgba(0,0,0,0.5)";
+
+    // 2. Base Fill
+    ctx.fillStyle = colorBase;
+    ctx.fillRect(x, y, size, size);
+
+    // Turn off shadow for the details so they stay crisp
+    ctx.shadowBlur = 0;
+
+    // 3. Top/Left Highlight (Light source top-left)
+    ctx.fillStyle = colorLight; 
     ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    ctx.lineTo(x + r, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + size, y);
+    ctx.lineTo(x + size - 4, y + 4);
+    ctx.lineTo(x + 4, y + 4);
+    ctx.lineTo(x + 4, y + size - 4);
+    ctx.lineTo(x, y + size);
     ctx.closePath();
     ctx.fill();
+
+    // 4. Bottom/Right Shadow
+    ctx.fillStyle = colorDark;
+    ctx.beginPath();
+    ctx.moveTo(x + size, y + size);
+    ctx.lineTo(x, y + size);
+    ctx.lineTo(x + 4, y + size - 4);
+    ctx.lineTo(x + size - 4, y + size - 4);
+    ctx.lineTo(x + size - 4, y + 4);
+    ctx.lineTo(x + size, y);
+    ctx.closePath();
+    ctx.fill();
+    
+    // 5. Inner Square (The "Face")
+    ctx.fillStyle = colorBase;
+    ctx.fillRect(x + 4, y + 4, size - 8, size - 8);
+}
+
+// Helper to draw 3D Sphere Food
+function draw3DFood(x, y) {
+    const centerX = x + size/2;
+    const centerY = y + size/2;
+    const radius = size/2 - 2;
+
+    // Create a radial gradient for 3D sphere look
+    const grad = ctx.createRadialGradient(centerX - 3, centerY - 3, 2, centerX, centerY, radius);
+    grad.addColorStop(0, "#fca5a5"); // Highlight (white/pinkish)
+    grad.addColorStop(0.4, "#ef4444"); // Main red
+    grad.addColorStop(1, "#991b1b");   // Shadow (dark red)
+
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = "rgba(239, 68, 68, 0.6)";
+    
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Reset Shadow
+    ctx.shadowBlur = 0;
 }
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw food
-    ctx.fillStyle = "#ef4444";
-    ctx.beginPath();
-    ctx.arc(food.x + size/2, food.y + size/2, size/2.5, 0, Math.PI * 2);
-    ctx.fill();
+    // Draw Food
+    draw3DFood(food.x, food.y);
 
-    // Draw snake
+    // Draw Snake
     snake.forEach((part, index) => {
-        ctx.fillStyle = index === 0 ? "#22c55e" : "#4ade80";
-        drawRoundedRect(part.x, part.y, size, size, 6);
+        // Head is slightly different color than body
+        if (index === 0) {
+            draw3DBlock(part.x, part.y, "#22c55e", "#14532d", "#86efac"); // Green
+            
+            // Draw Eyes on Head
+            ctx.fillStyle = "white";
+            let eyeOffsetX = 4;
+            let eyeOffsetY = 4;
+            // Simple logic to move eyes based on direction
+            if(direction === "RIGHT") { eyeOffsetX = 12; }
+            if(direction === "DOWN")  { eyeOffsetY = 12; }
+            
+            // Left Eye
+            ctx.beginPath(); 
+            ctx.arc(part.x + eyeOffsetX, part.y + (direction==="LEFT"||direction==="RIGHT"? 6 : 12), 2, 0, Math.PI*2);
+            ctx.fill();
+            // Right Eye
+            ctx.beginPath(); 
+            ctx.arc(part.x + (direction==="LEFT"||direction==="RIGHT"? size-eyeOffsetX : 12), part.y + (direction==="LEFT"||direction==="RIGHT"? 14 : eyeOffsetY), 2, 0, Math.PI*2);
+            ctx.fill();
+
+        } else {
+            draw3DBlock(part.x, part.y, "#4ade80", "#15803d", "#bbf7d0"); // Light Green
+        }
     });
 
     let head = { ...snake[0] };
@@ -103,29 +212,38 @@ function draw() {
     // Eat food
     if (head.x === food.x && head.y === food.y) {
         score++;
+        scoreEl.innerText = score; // Update Score on HTML
         food = spawnFood();
     } else {
         snake.pop();
     }
 
-    // Game over
+    // Game over logic
     if (
         head.x < 0 || head.y < 0 ||
         head.x >= canvas.width || head.y >= canvas.height ||
         snake.some(p => p.x === head.x && p.y === head.y)
     ) {
-        alert("Game Over! Score: " + score);
-        snake = [
-            { x: 200, y: 200 },
-            { x: 180, y: 200 },
-            { x: 160, y: 200 }
-        ];
-        direction = "RIGHT";
-        score = 0;
-        return;
+        // Use a small timeout so the drawing finishes before the alert pops up
+        setTimeout(() => {
+            alert("Game Over! Final Score: " + score);
+            resetGame();
+        }, 10);
+        return; // Stop this frame
     }
 
     snake.unshift(head);
+}
+
+function resetGame() {
+    snake = [
+        { x: 200, y: 200 },
+        { x: 180, y: 200 },
+        { x: 160, y: 200 }
+    ];
+    direction = "RIGHT";
+    score = 0;
+    scoreEl.innerText = score;
 }
 
 setInterval(draw, 110);
